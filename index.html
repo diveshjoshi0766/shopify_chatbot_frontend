@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Shopify AI Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      *,*::before,*::after{box-sizing:border-box}
+      :root{
+        --bg:#020617;--surface:#0f172a;--surface2:#1e293b;
+        --border:#1f2937;--border2:#334155;
+        --text:#e5e7eb;--text-muted:#9ca3af;--text-bright:#f9fafb;
+        --accent:#6366f1;--accent2:#818cf8;--green:#22c55e;--red:#f87171;
+        --user-bg:rgba(99,102,241,0.13);--bot-bg:rgba(148,163,184,0.1);
+        --radius:14px;
+        font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+        color-scheme:dark;
+      }
+      html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text)}
+
+      /* ===== App shell ===== */
+      .app{display:flex;flex-direction:column;height:100vh;max-width:860px;margin:0 auto;width:100%}
+      .header{
+        display:flex;align-items:center;justify-content:space-between;
+        padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;
+      }
+      .header h1{margin:0;font-size:1.1rem;font-weight:600;letter-spacing:-0.01em}
+      .header-actions{display:flex;gap:10px;align-items:center}
+      .header-actions a,.header-actions button{
+        color:var(--text-muted);background:none;border:1px solid var(--border);
+        border-radius:8px;padding:6px 10px;font-size:0.8rem;cursor:pointer;
+        text-decoration:none;display:inline-flex;align-items:center;gap:5px;
+      }
+      .header-actions a:hover,.header-actions button:hover{border-color:var(--border2);color:var(--text)}
+
+      /* ===== Chat messages ===== */
+      .messages{flex:1;overflow-y:auto;padding:20px 20px 12px;display:flex;flex-direction:column;gap:10px}
+      .msg{max-width:82%;padding:10px 14px;border-radius:var(--radius);font-size:0.9rem;line-height:1.5;word-wrap:break-word}
+      .msg.user{align-self:flex-end;background:var(--user-bg);border:1px solid rgba(99,102,241,0.18)}
+      .msg.bot{align-self:flex-start;background:var(--bot-bg);border:1px solid var(--border)}
+      .msg.bot.wide{max-width:92%}
+      .msg.system{align-self:center;color:var(--text-muted);font-size:0.8rem;background:none;border:none;padding:4px 0}
+
+      /* Bot markdown */
+      .md-root{min-width:0;max-width:100%;overflow:hidden}
+      .md-root p{margin:0 0 0.6em}.md-root p:last-child{margin-bottom:0}
+      .md-root ul,.md-root ol{margin:0.3em 0 0.6em;padding-left:1.3em}
+      .md-root li{margin:0.2em 0}
+      .md-root h1,.md-root h2,.md-root h3{margin:0.5em 0 0.3em;font-size:1em;font-weight:600;color:var(--text-bright)}
+      .md-root h1:first-child,.md-root h2:first-child,.md-root h3:first-child{margin-top:0}
+      .md-root a{color:var(--accent2);text-decoration:underline;text-underline-offset:2px}
+      .md-root a:hover{color:#bfdbfe}
+      .md-root code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.85em;padding:0.1em 0.3em;border-radius:5px;background:rgba(2,6,23,0.8);border:1px solid var(--border2)}
+      .md-root pre{margin:0.4em 0;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--border);overflow-x:auto;font-size:0.82rem;line-height:1.4}
+      .md-root pre code{padding:0;border:none;background:transparent;font-size:inherit}
+      .md-root blockquote{margin:0.4em 0;padding-left:0.8em;border-left:3px solid #475569;color:#cbd5e1}
+      .md-root strong{color:var(--text-bright);font-weight:600}
+      .md-root img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--border2);margin:0.4em 0;display:block}
+
+      /* ===== Interactive cards inside bot bubbles ===== */
+      .inline-card{
+        margin-top:10px;padding:12px;border-radius:10px;
+        background:rgba(15,23,42,0.7);border:1px solid var(--border2);
+      }
+      .inline-card h4{margin:0 0 8px;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)}
+
+      /* Store checkboxes */
+      .store-check{display:flex;flex-direction:column;gap:6px}
+      .store-check label{
+        display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
+        border:1px solid var(--border);cursor:pointer;font-size:0.85rem;transition:border-color 0.15s;
+      }
+      .store-check label:hover{border-color:var(--accent)}
+      .store-check label.checked{border-color:var(--accent);background:rgba(99,102,241,0.08)}
+      .store-check input[type="checkbox"]{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+      .store-check label.disabled{opacity:0.5;cursor:default;pointer-events:none}
+
+      /* Confirmation summary */
+      .confirm-summary{font-size:0.85rem;color:var(--text);padding:8px 10px;border-radius:8px;background:rgba(2,6,23,0.5);border:1px solid var(--border);margin-bottom:10px}
+
+      /* Inline buttons */
+      .inline-btns{display:flex;gap:8px;margin-top:10px}
+      .btn{
+        border:none;border-radius:999px;padding:8px 18px;font-size:0.85rem;font-weight:500;
+        cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity 0.15s;
+      }
+      .btn:disabled{opacity:0.4;cursor:default}
+      .btn-primary{background:linear-gradient(135deg,var(--accent),var(--green));color:#0b1120}
+      .btn-danger{background:var(--surface2);color:var(--red);border:1px solid var(--border2)}
+      .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}
+
+      /* ===== Input bar ===== */
+      .input-bar{
+        display:flex;align-items:flex-end;gap:10px;padding:14px 20px;
+        border-top:1px solid var(--border);flex-shrink:0;background:var(--surface);
+      }
+      .input-bar textarea{
+        flex:1;resize:none;border:1px solid var(--border2);border-radius:12px;
+        padding:10px 14px;background:var(--bg);color:var(--text);font-size:0.9rem;
+        font-family:inherit;outline:none;min-height:44px;max-height:140px;line-height:1.4;
+      }
+      .input-bar textarea:focus{border-color:var(--accent);box-shadow:0 0 0 1px rgba(99,102,241,0.3)}
+      .input-bar textarea::placeholder{color:var(--text-muted)}
+      .input-bar .btn-send{
+        border:none;border-radius:10px;padding:10px 16px;font-size:0.9rem;font-weight:500;
+        cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--green));color:#0b1120;
+        flex-shrink:0;height:44px;
+      }
+      .input-bar .btn-send:disabled{opacity:0.4;cursor:default}
+
+      /* ===== Typing indicator ===== */
+      .typing{display:flex;align-items:center;gap:4px;padding:6px 0}
+      .typing span{width:6px;height:6px;border-radius:50%;background:var(--text-muted);animation:bounce 1.2s infinite}
+      .typing span:nth-child(2){animation-delay:0.2s}
+      .typing span:nth-child(3){animation-delay:0.4s}
+      @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+
+      /* ===== Integrations page ===== */
+      .page{display:none;flex-direction:column;gap:16px;flex:1;overflow-y:auto;padding:20px}
+      .page.active{display:flex}
+      .page h2{margin:0 0 4px;font-size:1.3rem}
+      .page .subtitle{font-size:0.85rem;color:var(--text-muted);margin-bottom:8px}
+      .field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
+      .field label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)}
+      .field input,.field select{
+        border-radius:8px;border:1px solid var(--border2);padding:8px 12px;
+        background:var(--bg);color:var(--text);outline:none;font-size:0.88rem;
+      }
+      .field input:focus{border-color:var(--accent);box-shadow:0 0 0 1px rgba(99,102,241,0.3)}
+      .row{display:flex;flex-wrap:wrap;gap:12px}
+      .int-card{
+        border-radius:var(--radius);border:1px solid var(--border);
+        background:var(--surface);padding:14px;font-size:0.85rem;
+      }
+      .int-card h3{margin:0 0 8px;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)}
+      .int-card .small{font-size:0.8rem;color:var(--text-muted)}
+      .status-ok{color:var(--green)}.status-err{color:var(--red)}
+      .url-box{
+        margin:8px 0 0;padding:10px;border-radius:8px;background:var(--bg);
+        border:1px solid var(--border);font-size:0.72rem;word-break:break-all;
+        white-space:pre-wrap;max-height:100px;overflow-y:auto;font-family:ui-monospace,monospace;
+      }
+      .store-pill{padding:6px 10px;border-radius:8px;background:var(--surface2);font-size:0.78rem;margin:3px 0}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" crossorigin="anonymous"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <h1>Shopify AI Assistant</h1>
+        <div class="header-actions">
+          <a href="/integrations" data-link id="navIntegrations">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Integrations
+          </a>
+        </div>
+      </header>
+
+      <!-- Chat Page -->
+      <div class="messages" id="messages"></div>
+      <div class="input-bar" id="inputBar">
+        <textarea id="msgInput" rows="1" placeholder="Ask about products, orders, inventory..."></textarea>
+        <button class="btn-send" id="sendBtn">Send</button>
+      </div>
+
+      <!-- Integrations Page -->
+      <div class="page" id="pageIntegrations">
+        <div>
+          <h2>Shopify Integrations</h2>
+          <div class="subtitle">Connect stores with OAuth or paste an Admin API token.</div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Backend URL</label><input id="intBackendUrl" type="text" /></div>
+          <div class="field"><label>Tenant ID</label><input id="intTenantId" type="text" placeholder="t1" /></div>
+          <div class="field"><label>User ID</label><input id="intUserId" type="text" placeholder="u1" /></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="int-card">
+            <h3>OAuth Install</h3>
+            <p class="small">Requires SHOPIFY_APP_CLIENT_ID, CLIENT_SECRET, and REDIRECT_URI in backend .env.</p>
+            <div class="row" style="margin-top:10px;align-items:flex-end">
+              <div class="field" style="flex:2"><label>Shop</label><input id="oauthShop" type="text" placeholder="my-store.myshopify.com" /></div>
+              <button class="btn btn-primary" id="oauthBtn">Get install link</button>
+            </div>
+            <pre class="url-box" id="oauthUrlOut" style="display:none"></pre>
+            <p class="small" id="oauthMsg"></p>
+          </div>
+          <div class="int-card">
+            <h3>Manual Admin Token</h3>
+            <p class="small">Owner or admin only.</p>
+            <div class="row" style="margin-top:10px">
+              <div class="field"><label>Shop domain</label><input id="manualShop" type="text" placeholder="my-store.myshopify.com" /></div>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <div class="field" style="min-width:100%"><label>Admin API access token</label><input id="manualToken" type="password" placeholder="shpat_..." autocomplete="off" /></div>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <div class="field" style="min-width:100%"><label>Scopes (comma-separated)</label><input id="manualScopes" type="text" placeholder="read_products,read_orders,write_products" /></div>
+            </div>
+            <div style="margin-top:10px"><button class="btn btn-primary" id="manualSaveBtn">Save connection</button></div>
+            <p class="small" id="manualMsg"></p>
+          </div>
+          <div class="int-card">
+            <h3>Connected Stores</h3>
+            <button class="btn btn-secondary" id="refreshStoresBtn" style="margin-bottom:8px">Refresh</button>
+            <div id="connectedStoresOut" class="small">Enter tenant/user above, then refresh.</div>
+          </div>
+        </div>
+        <div style="padding:10px 0"><a href="/" data-link style="color:var(--accent2);font-size:0.85rem">&larr; Back to chat</a></div>
+      </div>
+    </div>
+
+    <script>
+    (function(){
+      /* ===== Config (hardcoded defaults, localStorage for integrations sync) ===== */
+      const LS={backend:"dys_backend_url",tenant:"dys_tenant_id",user:"dys_user_id"};
+      const cfg={
+        get backendUrl(){return(localStorage.getItem(LS.backend)||"http://localhost:8000").replace(/\/+$/,"")},
+        get tenantId(){return localStorage.getItem(LS.tenant)||"t1"},
+        get userId(){return localStorage.getItem(LS.user)||"u1"},
+      };
+      function authHeaders(){return{"X-Tenant-Id":cfg.tenantId,"X-User-Id":cfg.userId}}
+
+      /* ===== DOM refs ===== */
+      const messagesEl=document.getElementById("messages");
+      const msgInput=document.getElementById("msgInput");
+      const sendBtn=document.getElementById("sendBtn");
+      const inputBar=document.getElementById("inputBar");
+      const pageInt=document.getElementById("pageIntegrations");
+
+      /* ===== Routing ===== */
+      function normPath(){return(window.location.pathname.replace(/\/+$/,"")||"/")}
+      function renderRoute(){
+        const p=normPath();
+        const isInt=p==="/integrations";
+        messagesEl.style.display=isInt?"none":"flex";
+        inputBar.style.display=isInt?"none":"flex";
+        pageInt.classList.toggle("active",isInt);
+        document.title=isInt?"Integrations — Shopify AI":"Shopify AI Assistant";
+        if(isInt)syncIntFields();
+      }
+      document.querySelectorAll("[data-link]").forEach(a=>{
+        a.addEventListener("click",e=>{e.preventDefault();history.pushState({},"",a.getAttribute("href"));renderRoute()})
+      });
+      window.addEventListener("popstate",renderRoute);
+
+      /* ===== Markdown rendering ===== */
+      let chatZoom=null;
+      function getZoom(){
+        if(typeof mediumZoom==="undefined")return null;
+        if(!chatZoom)try{chatZoom=mediumZoom({background:"rgba(2,6,23,0.94)",margin:20})}catch(e){return null}
+        return chatZoom;
+      }
+      function renderMd(text){
+        const raw=typeof marked!=="undefined"&&marked.parse?marked.parse(String(text),{breaks:true,gfm:true}):"<p>"+esc(text)+"</p>";
+        const clean=typeof DOMPurify!=="undefined"?DOMPurify.sanitize(raw,{ADD_ATTR:["target","loading","decoding","class"],ALLOW_DATA_ATTR:false}):raw;
+        const wrap=document.createElement("div");wrap.innerHTML=clean;
+        wrap.querySelectorAll("a[href]").forEach(a=>{a.target="_blank";a.rel="noopener noreferrer"});
+        return wrap.innerHTML;
+      }
+      function enhanceMd(root){
+        if(!root)return;
+        root.querySelectorAll("img").forEach(img=>{img.loading="lazy";img.decoding="async"});
+        const z=getZoom();if(z)try{z.attach(root.querySelectorAll("img"))}catch(e){}
+      }
+      function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+
+      /* ===== Message helpers ===== */
+      let lastPendingMsg=null;
+      function addMsg(role,content,opts={}){
+        const div=document.createElement("div");
+        div.className="msg "+role;
+        if(role==="bot"){
+          div.classList.add("wide");
+          const md=document.createElement("div");md.className="md-root";
+          md.innerHTML=renderMd(content);div.appendChild(md);enhanceMd(md);
+        }else if(role==="system"){
+          div.textContent=content;
+        }else{
+          div.textContent=content;
+        }
+        messagesEl.appendChild(div);
+        scrollBottom();
+        return div;
+      }
+      function addBotRaw(htmlContent){
+        const div=document.createElement("div");div.className="msg bot wide";
+        div.innerHTML=htmlContent;messagesEl.appendChild(div);scrollBottom();return div;
+      }
+      function addTyping(){
+        const div=document.createElement("div");div.className="msg bot";div.id="typing-indicator";
+        div.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';
+        messagesEl.appendChild(div);scrollBottom();return div;
+      }
+      function removeTyping(){const el=document.getElementById("typing-indicator");if(el)el.remove()}
+      function scrollBottom(){messagesEl.scrollTop=messagesEl.scrollHeight}
+
+      /* ===== Textarea auto-resize ===== */
+      msgInput.addEventListener("input",()=>{
+        msgInput.style.height="auto";
+        msgInput.style.height=Math.min(msgInput.scrollHeight,140)+"px";
+      });
+
+      /* ===== Chat state ===== */
+      let sending=false;
+      let pendingActionId=null;
+      let selectedStoreIds=null;
+
+      function setLoading(v){
+        sending=v;sendBtn.disabled=v;sendBtn.textContent=v?"...":"Send";
+      }
+
+      /* ===== Send chat message ===== */
+      async function sendChat(text,extraBody={}){
+        if(!text.trim())return;
+        if(sending)return;
+        if(!extraBody._skipUserBubble)addMsg("user",text);
+        msgInput.value="";msgInput.style.height="auto";
+        setLoading(true);
+        addTyping();
+
+        const body={message:text,...extraBody};
+        delete body._skipUserBubble;
+        if(!body.store_ids&&!body.store_id&&!body.shop_domain&&selectedStoreIds){
+          body.store_ids=selectedStoreIds;
+        }
+
+        try{
+          const resp=await fetch(cfg.backendUrl+"/chat",{
+            method:"POST",
+            headers:{"Content-Type":"application/json",...authHeaders()},
+            body:JSON.stringify(body),
+          });
+          removeTyping();
+          const data=await resp.json();
+
+          if(!resp.ok){
+            const errText=typeof data.detail==="string"?data.detail:JSON.stringify(data);
+            addMsg("bot",errText||"Request failed.");return;
+          }
+
+          if(data.type==="needs_store_selection"){
+            renderStoreSelection(data,text);return;
+          }
+
+          if(data.type==="needs_confirmation"){
+            renderConfirmation(data);return;
+          }
+
+          addMsg("bot",data.message||JSON.stringify(data));
+        }catch(err){
+          removeTyping();
+          addMsg("bot","Error: "+(err.message||String(err)));
+        }finally{
+          setLoading(false);
+        }
+      }
+
+      /* ===== Store selection (checkboxes in chat) ===== */
+      function renderStoreSelection(data,originalMessage){
+        const stores=data.stores||[];
+        let html='<div class="md-root"><p>'+(esc(data.message||"Which stores should I use?"))+'</p></div>';
+        html+='<div class="inline-card"><h4>Select Stores</h4><div class="store-check" id="storeCheckGroup">';
+        stores.forEach((s,i)=>{
+          const sid=s.store_id||s.storeId;
+          const domain=s.shop_domain||s.shopDomain||sid;
+          html+=`<label id="storeLabel${i}"><input type="checkbox" value="${esc(sid)}" data-domain="${esc(domain)}" checked /> ${esc(domain)}</label>`;
+        });
+        html+='</div><div class="inline-btns"><button class="btn btn-primary" id="confirmStoresBtn">Confirm Selection</button></div></div>';
+
+        const bubble=addBotRaw(html);
+
+        bubble.querySelectorAll('.store-check input[type="checkbox"]').forEach(cb=>{
+          cb.addEventListener("change",()=>{cb.closest("label").classList.toggle("checked",cb.checked)});
+          cb.closest("label").classList.add("checked");
+        });
+
+        const confirmBtn=bubble.querySelector("#confirmStoresBtn");
+        confirmBtn.addEventListener("click",()=>{
+          const checked=[...bubble.querySelectorAll('.store-check input:checked')].map(cb=>cb.value);
+          if(!checked.length){addMsg("system","Please select at least one store.");return}
+
+          selectedStoreIds=checked;
+
+          confirmBtn.disabled=true;confirmBtn.textContent="Selected";
+          bubble.querySelectorAll('.store-check input').forEach(cb=>{cb.disabled=true;cb.closest("label").classList.add("disabled")});
+
+          const names=[...bubble.querySelectorAll('.store-check input:checked')].map(cb=>cb.dataset.domain);
+          addMsg("system","Selected: "+names.join(", ")+" (remembered for this session)");
+
+          sendChat(originalMessage,{store_ids:checked,_skipUserBubble:true});
+        });
+      }
+
+      /* ===== Mutation confirmation (inline in chat) ===== */
+      function renderConfirmation(data){
+        pendingActionId=data.pending_action_id;
+        const summary=data.pending_action_summary||"";
+        let html='<div class="md-root"><p>'+renderMd(data.message||"I need your confirmation to proceed.")+'</p></div>';
+        html+='<div class="inline-card"><h4>Proposed Change</h4>';
+        html+='<div class="confirm-summary">'+esc(summary)+'</div>';
+        html+='<div class="inline-btns">';
+        html+='<button class="btn btn-primary" id="inlineConfirmBtn">Confirm</button>';
+        html+='<button class="btn btn-danger" id="inlineCancelBtn">Cancel</button>';
+        html+='</div></div>';
+
+        const bubble=addBotRaw(html);
+        const confirmEl=bubble.querySelector("#inlineConfirmBtn");
+        const cancelEl=bubble.querySelector("#inlineCancelBtn");
+
+        async function handleConfirm(approve){
+          confirmEl.disabled=true;cancelEl.disabled=true;
+          confirmEl.textContent=approve?"Confirming...":"Confirm";
+          cancelEl.textContent=approve?"Cancel":"Cancelling...";
+          addTyping();
+          try{
+            const resp=await fetch(cfg.backendUrl+"/chat/confirm",{
+              method:"POST",
+              headers:{"Content-Type":"application/json",...authHeaders()},
+              body:JSON.stringify({pending_action_id:pendingActionId,approve}),
+            });
+            removeTyping();
+            const d=await resp.json();
+            addMsg("bot",d.message||JSON.stringify(d));
+          }catch(err){
+            removeTyping();
+            addMsg("bot","Error: "+(err.message||String(err)));
+          }finally{
+            confirmEl.textContent=approve?"Confirmed":"Confirm";
+            cancelEl.textContent=approve?"Cancel":"Cancelled";
+            pendingActionId=null;
+          }
+        }
+        confirmEl.addEventListener("click",()=>handleConfirm(true));
+        cancelEl.addEventListener("click",()=>handleConfirm(false));
+      }
+
+      /* ===== Send handlers ===== */
+      sendBtn.addEventListener("click",()=>sendChat(msgInput.value.trim()));
+      msgInput.addEventListener("keydown",e=>{
+        if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat(msgInput.value.trim())}
+      });
+
+      /* ===== Integrations page logic ===== */
+      function syncIntFields(){
+        document.getElementById("intBackendUrl").value=cfg.backendUrl;
+        document.getElementById("intTenantId").value=cfg.tenantId;
+        document.getElementById("intUserId").value=cfg.userId;
+      }
+      function saveIntFields(){
+        localStorage.setItem(LS.backend,document.getElementById("intBackendUrl").value.trim());
+        localStorage.setItem(LS.tenant,document.getElementById("intTenantId").value.trim());
+        localStorage.setItem(LS.user,document.getElementById("intUserId").value.trim());
+      }
+      ["intBackendUrl","intTenantId","intUserId"].forEach(id=>{
+        document.getElementById(id).addEventListener("change",saveIntFields);
+      });
+
+      function intHeaders(){
+        saveIntFields();
+        return{backendUrl:cfg.backendUrl,headers:{"X-Tenant-Id":cfg.tenantId,"X-User-Id":cfg.userId}};
+      }
+
+      document.getElementById("oauthBtn").addEventListener("click",async()=>{
+        const{backendUrl,headers}=intHeaders();
+        const shop=document.getElementById("oauthShop").value.trim();
+        const out=document.getElementById("oauthUrlOut");
+        const msg=document.getElementById("oauthMsg");
+        out.style.display="none";msg.textContent="";
+        if(!shop){msg.textContent="Enter a shop domain.";msg.className="small status-err";return}
+        try{
+          const resp=await fetch(backendUrl+"/integrations/shopify/oauth-install-url?shop="+encodeURIComponent(shop),{headers});
+          const data=await resp.json();
+          if(!resp.ok){msg.textContent=data.detail||JSON.stringify(data);msg.className="small status-err";return}
+          out.textContent=data.install_url;out.style.display="block";
+          msg.innerHTML='<span class="status-ok">Open the link above in a browser to authorize.</span>';msg.className="small";
+        }catch(e){msg.textContent=e.message||String(e);msg.className="small status-err"}
+      });
+
+      document.getElementById("manualSaveBtn").addEventListener("click",async()=>{
+        const{backendUrl,headers}=intHeaders();
+        const shop=document.getElementById("manualShop").value.trim();
+        const token=document.getElementById("manualToken").value.trim();
+        const scopesRaw=document.getElementById("manualScopes").value.trim();
+        const msg=document.getElementById("manualMsg");msg.textContent="";
+        if(!shop||!token){msg.textContent="Shop domain and token are required.";msg.className="small status-err";return}
+        const scopes=scopesRaw?scopesRaw.split(",").map(s=>s.trim()).filter(Boolean):[];
+        try{
+          const resp=await fetch(backendUrl+"/admin/stores/manual-token",{
+            method:"POST",headers:{...headers,"Content-Type":"application/json"},
+            body:JSON.stringify({shop_domain:shop,access_token:token,scopes}),
+          });
+          const data=await resp.json();
+          if(!resp.ok){msg.textContent=data.detail||JSON.stringify(data);msg.className="small status-err";return}
+          msg.textContent="Saved. store_id: "+(data.store_id||"ok");msg.className="small status-ok";
+          document.getElementById("manualToken").value="";loadStores();
+        }catch(e){msg.textContent=e.message||String(e);msg.className="small status-err"}
+      });
+
+      async function loadStores(){
+        const el=document.getElementById("connectedStoresOut");
+        const{backendUrl,headers}=intHeaders();
+        el.textContent="Loading...";
+        try{
+          const resp=await fetch(backendUrl+"/integrations/shopify/status",{headers});
+          const data=await resp.json();
+          if(!resp.ok){el.textContent=data.detail||JSON.stringify(data);el.className="small status-err";return}
+          el.className="small";
+          if(!data.stores||!data.stores.length){el.textContent="No stores connected yet.";return}
+          el.innerHTML=data.stores.map(s=>`<div class="store-pill">${s.shop_domain} &mdash; <code>${s.store_id}</code> (${s.token_source}, ${s.status})</div>`).join("");
+        }catch(e){el.textContent=e.message||String(e);el.className="small status-err"}
+      }
+      document.getElementById("refreshStoresBtn").addEventListener("click",loadStores);
+
+      /* ===== Boot ===== */
+      renderRoute();
+      addMsg("system","Connected to "+cfg.backendUrl+" as "+cfg.tenantId+"/"+cfg.userId);
+    })();
+    </script>
+  </body>
+</html>
