@@ -216,8 +216,9 @@
     (function(){
       /* ===== Config (hardcoded defaults, localStorage for integrations sync) ===== */
       const LS={backend:"dys_backend_url",tenant:"dys_tenant_id",user:"dys_user_id"};
+      const DEFAULT_BACKEND=window.location.origin;
       const cfg={
-        get backendUrl(){return(localStorage.getItem(LS.backend)||"http://localhost:8000").replace(/\/+$/,"")},
+        get backendUrl(){return(localStorage.getItem(LS.backend)||DEFAULT_BACKEND).replace(/\/+$/,"")},
         get tenantId(){return localStorage.getItem(LS.tenant)||"t1"},
         get userId(){return localStorage.getItem(LS.user)||"u1"},
       };
@@ -352,7 +353,7 @@
           addMsg("bot",data.message||JSON.stringify(data));
         }catch(err){
           removeTyping();
-          addMsg("bot","Error: "+(err.message||String(err)));
+          addMsg("bot","Network/API error. Check Integrations -> Backend URL (use this same host) and refresh. Details: "+(err.message||String(err)));
         }finally{
           setLoading(false);
         }
