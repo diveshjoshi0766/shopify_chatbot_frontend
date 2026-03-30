@@ -141,16 +141,53 @@
         white-space:pre-wrap;max-height:100px;overflow-y:auto;font-family:ui-monospace,monospace;
       }
       .store-pill{padding:6px 10px;border-radius:8px;background:var(--surface2);font-size:0.78rem;margin:3px 0}
+      .auth-overlay{
+        position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+        background:rgba(2,6,23,0.75);backdrop-filter:blur(2px);z-index:20;
+      }
+      .auth-card{
+        width:min(460px,92vw);background:var(--surface);border:1px solid var(--border2);
+        border-radius:16px;padding:18px;
+      }
+      .auth-card h2{margin:0 0 6px;font-size:1.1rem}
+      .auth-card p{margin:0 0 14px;color:var(--text-muted);font-size:0.86rem}
+      .auth-msg{min-height:18px;font-size:0.82rem;color:var(--red)}
+      .badge{
+        font-size:0.72rem;color:var(--text-muted);border:1px solid var(--border);
+        border-radius:999px;padding:3px 8px;
+      }
+      .hidden{display:none !important}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" crossorigin="anonymous"></script>
   </head>
   <body>
+    <div class="auth-overlay" id="authOverlay">
+      <div class="auth-card">
+        <h2>Login</h2>
+        <p>Use your tenant and user email to access this chatbot.</p>
+        <div class="row">
+          <div class="field"><label>Backend URL</label><input id="loginBackendUrl" type="text" /></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div class="field"><label>Tenant ID</label><input id="loginTenantId" type="text" placeholder="tenant-id" /></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="you@company.com" /></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn-primary" id="loginBtn">Login</button>
+        </div>
+        <p class="auth-msg" id="loginMsg"></p>
+      </div>
+    </div>
     <div class="app">
       <header class="header">
         <h1>Shopify AI Assistant</h1>
         <div class="header-actions">
+          <span class="badge hidden" id="userBadge"></span>
+          <button id="logoutBtn" class="hidden">Logout</button>
           <a href="/integrations" data-link id="navIntegrations">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             Integrations
@@ -174,7 +211,7 @@
         <div class="row">
           <div class="field"><label>Backend URL</label><input id="intBackendUrl" type="text" /></div>
           <div class="field"><label>Tenant ID</label><input id="intTenantId" type="text" placeholder="t1" /></div>
-          <div class="field"><label>User ID</label><input id="intUserId" type="text" placeholder="u1" /></div>
+          <div class="field"><label>User</label><input id="intEmail" type="text" readonly /></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="int-card">
@@ -215,14 +252,18 @@
     <script>
     (function(){
       /* ===== Config (hardcoded defaults, localStorage for integrations sync) ===== */
-      const LS={backend:"dys_backend_url",tenant:"dys_tenant_id",user:"dys_user_id"};
+      const LS={backend:"dys_backend_url",tenant:"dys_tenant_id",token:"dys_access_token",email:"dys_login_email"};
       const DEFAULT_BACKEND=window.location.origin;
       const cfg={
         get backendUrl(){return(localStorage.getItem(LS.backend)||DEFAULT_BACKEND).replace(/\/+$/,"")},
-        get tenantId(){return localStorage.getItem(LS.tenant)||"t1"},
-        get userId(){return localStorage.getItem(LS.user)||"u1"},
+        get tenantId(){return localStorage.getItem(LS.tenant)||""},
+        get token(){return localStorage.getItem(LS.token)||""},
+        get email(){return localStorage.getItem(LS.email)||""},
       };
-      function authHeaders(){return{"X-Tenant-Id":cfg.tenantId,"X-User-Id":cfg.userId}}
+      function authHeaders(){
+        if(!cfg.token)return {};
+        return{"Authorization":"Bearer "+cfg.token};
+      }
 
       /* ===== DOM refs ===== */
       const messagesEl=document.getElementById("messages");
@@ -230,6 +271,15 @@
       const sendBtn=document.getElementById("sendBtn");
       const inputBar=document.getElementById("inputBar");
       const pageInt=document.getElementById("pageIntegrations");
+      const authOverlay=document.getElementById("authOverlay");
+      const userBadge=document.getElementById("userBadge");
+      const logoutBtn=document.getElementById("logoutBtn");
+
+      const authState={
+        me:null,
+        canWriteAllSelected:false,
+        canImportManualToken:false,
+      };
 
       /* ===== Routing ===== */
       function normPath(){return(window.location.pathname.replace(/\/+$/,"")||"/")}
@@ -241,6 +291,39 @@
         pageInt.classList.toggle("active",isInt);
         document.title=isInt?"Integrations — Shopify AI":"Shopify AI Assistant";
         if(isInt)syncIntFields();
+      }
+      function setAuthUi(authed){
+        authOverlay.style.display=authed?"none":"flex";
+        logoutBtn.classList.toggle("hidden",!authed);
+        userBadge.classList.toggle("hidden",!authed);
+        sendBtn.disabled=!authed;
+        msgInput.disabled=!authed;
+      }
+      async function loadMe(){
+        if(!cfg.token){setAuthUi(false);return false}
+        try{
+          const resp=await fetch(cfg.backendUrl+"/auth/me",{headers:authHeaders()});
+          if(!resp.ok)throw new Error("Session expired");
+          const me=await resp.json();
+          authState.me=me;
+          authState.canImportManualToken=!!(me.capabilities&&me.capabilities.can_import_manual_token);
+          userBadge.textContent=(me.user.email||"user")+" ("+(me.user.role||"member")+")";
+          setAuthUi(true);
+          syncIntFields();
+          return true;
+        }catch(_e){
+          localStorage.removeItem(LS.token);
+          authState.me=null;
+          userBadge.textContent="";
+          setAuthUi(false);
+          return false;
+        }
+      }
+      function logout(){
+        localStorage.removeItem(LS.token);
+        authState.me=null;
+        selectedStoreIds=null;
+        setAuthUi(false);
       }
       document.querySelectorAll("[data-link]").forEach(a=>{
         a.addEventListener("click",e=>{e.preventDefault();history.pushState({},"",a.getAttribute("href"));renderRoute()})
@@ -308,6 +391,12 @@
       let sending=false;
       let pendingActionId=null;
       let selectedStoreIds=null;
+      function userCanWriteSelectedStores(){
+        if(!authState.me||!authState.me.can_write_by_store)return false;
+        const selected=selectedStoreIds&&selectedStoreIds.length?selectedStoreIds:(authState.me.stores||[]).map(s=>s.store_id);
+        if(!selected.length)return false;
+        return selected.every(sid=>!!authState.me.can_write_by_store[sid]);
+      }
 
       function setLoading(v){
         sending=v;sendBtn.disabled=v;sendBtn.textContent=v?"...":"Send";
@@ -317,6 +406,7 @@
       async function sendChat(text,extraBody={}){
         if(!text.trim())return;
         if(sending)return;
+        if(!cfg.token){addMsg("system","Please login first.");setAuthUi(false);return}
         if(!extraBody._skipUserBubble)addMsg("user",text);
         msgInput.value="";msgInput.style.height="auto";
         setLoading(true);
@@ -399,11 +489,15 @@
       function renderConfirmation(data){
         pendingActionId=data.pending_action_id;
         const summary=data.pending_action_summary||"";
+        const canWrite=userCanWriteSelectedStores();
         let html='<div class="md-root"><p>'+renderMd(data.message||"I need your confirmation to proceed.")+'</p></div>';
         html+='<div class="inline-card"><h4>Proposed Change</h4>';
         html+='<div class="confirm-summary">'+esc(summary)+'</div>';
+        if(!canWrite){
+          html+='<div class="small status-err">You have read-only access for one or more selected stores.</div>';
+        }
         html+='<div class="inline-btns">';
-        html+='<button class="btn btn-primary" id="inlineConfirmBtn">Confirm</button>';
+        html+='<button class="btn btn-primary" id="inlineConfirmBtn" '+(canWrite?"":"disabled")+'>Confirm</button>';
         html+='<button class="btn btn-danger" id="inlineCancelBtn">Cancel</button>';
         html+='</div></div>';
 
@@ -447,21 +541,21 @@
       /* ===== Integrations page logic ===== */
       function syncIntFields(){
         document.getElementById("intBackendUrl").value=cfg.backendUrl;
-        document.getElementById("intTenantId").value=cfg.tenantId;
-        document.getElementById("intUserId").value=cfg.userId;
+        document.getElementById("intTenantId").value=(authState.me&&authState.me.user&&authState.me.user.tenant_id)||cfg.tenantId||"";
+        document.getElementById("intEmail").value=(authState.me&&authState.me.user&&authState.me.user.email)||"";
+        document.getElementById("manualSaveBtn").disabled=!authState.canImportManualToken;
       }
       function saveIntFields(){
         localStorage.setItem(LS.backend,document.getElementById("intBackendUrl").value.trim());
         localStorage.setItem(LS.tenant,document.getElementById("intTenantId").value.trim());
-        localStorage.setItem(LS.user,document.getElementById("intUserId").value.trim());
       }
-      ["intBackendUrl","intTenantId","intUserId"].forEach(id=>{
+      ["intBackendUrl","intTenantId"].forEach(id=>{
         document.getElementById(id).addEventListener("change",saveIntFields);
       });
 
       function intHeaders(){
         saveIntFields();
-        return{backendUrl:cfg.backendUrl,headers:{"X-Tenant-Id":cfg.tenantId,"X-User-Id":cfg.userId}};
+        return{backendUrl:cfg.backendUrl,headers:authHeaders()};
       }
 
       document.getElementById("oauthBtn").addEventListener("click",async()=>{
@@ -515,9 +609,51 @@
       }
       document.getElementById("refreshStoresBtn").addEventListener("click",loadStores);
 
+      document.getElementById("loginBackendUrl").value=cfg.backendUrl;
+      document.getElementById("loginTenantId").value=cfg.tenantId;
+      document.getElementById("loginEmail").value=cfg.email;
+      document.getElementById("loginBtn").addEventListener("click",async()=>{
+        const backend=document.getElementById("loginBackendUrl").value.trim().replace(/\/+$/,"");
+        const tenant=document.getElementById("loginTenantId").value.trim();
+        const email=document.getElementById("loginEmail").value.trim().toLowerCase();
+        const msg=document.getElementById("loginMsg");
+        msg.textContent="";
+        if(!backend||!tenant||!email){msg.textContent="All fields are required.";return}
+        localStorage.setItem(LS.backend,backend);
+        localStorage.setItem(LS.tenant,tenant);
+        localStorage.setItem(LS.email,email);
+        try{
+          const resp=await fetch(backend+"/auth/login",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({tenant_id:tenant,email}),
+          });
+          const data=await resp.json();
+          if(!resp.ok){msg.textContent=data.detail||"Login failed";return}
+          localStorage.setItem(LS.token,data.access_token||"");
+          const ok=await loadMe();
+          if(ok){
+            addMsg("system","Authenticated as "+email);
+            renderRoute();
+          }else{
+            msg.textContent="Could not load session details.";
+          }
+        }catch(e){
+          msg.textContent=e.message||String(e);
+        }
+      });
+      logoutBtn.addEventListener("click",()=>logout());
+
       /* ===== Boot ===== */
       renderRoute();
-      addMsg("system","Connected to "+cfg.backendUrl+" as "+cfg.tenantId+"/"+cfg.userId);
+      loadMe().then(ok=>{
+        if(ok){
+          const me=authState.me&&authState.me.user;
+          addMsg("system","Connected to "+cfg.backendUrl+" as "+((me&&me.email)||"user"));
+        }else{
+          addMsg("system","Please login to continue.");
+        }
+      });
     })();
     </script>
   </body>
