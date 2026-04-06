@@ -157,6 +157,19 @@
         border-radius:999px;padding:3px 8px;
       }
       .hidden{display:none !important}
+      .conv-bar{
+        display:flex;gap:8px;align-items:center;padding:8px 20px;border-bottom:1px solid var(--border);
+        background:rgba(15,23,42,0.5);flex-shrink:0;
+      }
+      .conv-bar select{
+        flex:1;max-width:280px;border-radius:8px;border:1px solid var(--border2);
+        padding:6px 10px;background:var(--bg);color:var(--text);font-size:0.82rem;
+      }
+      .conv-bar .btn-new{
+        font-size:0.78rem;padding:6px 12px;border-radius:8px;border:1px solid var(--border2);
+        background:var(--surface2);color:var(--text);cursor:pointer;
+      }
+      .conv-bar .btn-new:hover{border-color:var(--accent);color:var(--text-bright)}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
@@ -166,15 +179,15 @@
     <div class="auth-overlay" id="authOverlay">
       <div class="auth-card">
         <h2>Login</h2>
-        <p>Use your tenant and user email to access this chatbot.</p>
+        <p>Sign in with your email and password. Older accounts without a password can use email only.</p>
         <div class="row">
-          <div class="field"><label>Backend URL</label><input id="loginBackendUrl" type="text" /></div>
+          <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="you@company.com" autocomplete="username" /></div>
         </div>
         <div class="row" style="margin-top:8px">
-          <div class="field"><label>Tenant ID</label><input id="loginTenantId" type="text" placeholder="tenant-id" /></div>
+          <div class="field"><label>Password</label><input id="loginPassword" type="password" placeholder="Your account password" autocomplete="current-password" /></div>
         </div>
         <div class="row" style="margin-top:8px">
-          <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="you@company.com" /></div>
+          <div class="field"><label style="font-size:0.7rem">Backend URL (advanced)</label><input id="loginBackendUrl" type="text" placeholder="http://127.0.0.1:8004" /></div>
         </div>
         <div class="row" style="margin-top:10px">
           <button class="btn btn-primary" id="loginBtn">Login</button>
@@ -188,12 +201,17 @@
         <div class="header-actions">
           <span class="badge hidden" id="userBadge"></span>
           <button id="logoutBtn" class="hidden">Logout</button>
-          <a href="/integrations" data-link id="navIntegrations">
+          <a href="#/admin/register" data-link id="navRegister">Add user</a>
+          <a href="#/integrations" data-link id="navIntegrations">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             Integrations
           </a>
         </div>
       </header>
+      <div class="conv-bar" id="convBar">
+        <select id="convSelect" title="Conversations"></select>
+        <button type="button" class="btn-new" id="newChatBtn">New chat</button>
+      </div>
 
       <!-- Chat Page -->
       <div class="messages" id="messages"></div>
@@ -209,7 +227,7 @@
           <div class="subtitle">Connect stores with OAuth or paste an Admin API token.</div>
         </div>
         <div class="row">
-          <div class="field"><label>Backend URL</label><input id="intBackendUrl" type="text" /></div>
+          <div class="field"><label>Backend URL</label><input id="intBackendUrl" type="text" placeholder="http://127.0.0.1:8004" /></div>
           <div class="field"><label>Tenant ID</label><input id="intTenantId" type="text" placeholder="t1" /></div>
           <div class="field"><label>User</label><input id="intEmail" type="text" readonly /></div>
         </div>
@@ -237,6 +255,7 @@
               <div class="field" style="min-width:100%"><label>Scopes (comma-separated)</label><input id="manualScopes" type="text" placeholder="read_products,read_orders,write_products" /></div>
             </div>
             <div style="margin-top:10px"><button class="btn btn-primary" id="manualSaveBtn">Save connection</button></div>
+            <p class="small" id="manualSaveHint" style="display:none;margin-top:8px;color:var(--text-muted)"></p>
             <p class="small" id="manualMsg"></p>
           </div>
           <div class="int-card">
@@ -245,24 +264,132 @@
             <div id="connectedStoresOut" class="small">Enter tenant/user above, then refresh.</div>
           </div>
         </div>
-        <div style="padding:10px 0"><a href="/" data-link style="color:var(--accent2);font-size:0.85rem">&larr; Back to chat</a></div>
+        <div style="padding:10px 0"><a href="#/" data-link style="color:var(--accent2);font-size:0.85rem">&larr; Back to chat</a></div>
+      </div>
+
+      <!-- Add user — only at #/admin/register; admin credentials verified server-side -->
+      <div class="page" id="pageRegister">
+        <div>
+          <h2>Add user</h2>
+          <div class="subtitle">Use this page only to create users with read or write access. Admin email and password are checked by the API.</div>
+        </div>
+        <div class="int-card" id="regFormCard">
+          <div class="row">
+            <div class="field"><label>Backend URL</label><input id="regBackendUrl" type="text" placeholder="http://127.0.0.1:8004" /></div>
+          </div>
+          <h3 style="margin:14px 0 8px;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Admin</h3>
+          <div class="row">
+            <div class="field"><label>Admin email</label><input id="regAdminEmail" type="email" autocomplete="username" placeholder="admin@dyspensr.com" /></div>
+            <div class="field"><label>Admin password</label><input id="regAdminPassword" type="password" autocomplete="current-password" placeholder="Password" /></div>
+          </div>
+          <h3 style="margin:14px 0 8px;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">New user</h3>
+          <div class="row">
+            <div class="field"><label>Email</label><input id="regEmail" type="email" placeholder="user@company.com" /></div>
+            <div class="field"><label>Display name</label><input id="regDisplayName" type="text" placeholder="User Name" /></div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div class="field" style="flex:1;min-width:min(100%,280px)">
+              <label>New user password</label>
+              <input id="regUserPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters (used to log in)" minlength="8" />
+            </div>
+          </div>
+            <div class="row" style="margin-top:8px">
+            <div class="field">
+              <label>Access</label>
+              <select id="regAccess">
+                <option value="read">Read</option>
+                <option value="write">Write</option>
+              </select>
+            </div>
+          </div>
+            <p class="small" style="margin-top:6px;color:var(--text-muted)"><strong>Read</strong> users can query all tenant stores. <strong>Write</strong> users can confirm mutations on any store in the tenant (still subject to the Shopify token’s scopes).</p>
+          <div class="row" style="margin-top:10px">
+            <button class="btn btn-primary" id="registerBtn">Register user</button>
+          </div>
+          <p class="small" id="registerMsg"></p>
+          <div style="padding:10px 0"><a href="#/" data-link style="color:var(--accent2);font-size:0.85rem">&larr; Back to chat</a></div>
+        </div>
       </div>
     </div>
 
     <script>
     (function(){
       /* ===== Config (hardcoded defaults, localStorage for integrations sync) ===== */
-      const LS={backend:"dys_backend_url",tenant:"dys_tenant_id",token:"dys_access_token",email:"dys_login_email"};
-      const DEFAULT_BACKEND=window.location.origin;
+      const LS={
+        backend:"dys_backend_url",
+        tenant:"dys_tenant_id",
+        token:"dys_access_token",
+        email:"dys_login_email",
+        chat:"dys_chat_history",
+        stores:"dys_selected_store_ids",
+        convState:"dys_conversations_v2",
+      };
+      function computeDefaultBackend(){
+        const proto=window.location.protocol;
+        if(proto==="file:")return"http://127.0.0.1:8004";
+        const host=window.location.hostname;
+        const loopback=host==="localhost"||host==="127.0.0.1"||host==="[::1]"||host==="::1";
+        if(loopback){
+          const h=(host==="::1"||host==="[::1]")?"127.0.0.1":host;
+          return`${proto}//${h}:8004`;
+        }
+        if(window.location.port==="8080")return`${proto}//${host}:8004`;
+        return window.location.origin;
+      }
+      const DEFAULT_BACKEND=computeDefaultBackend();
       const cfg={
         get backendUrl(){return(localStorage.getItem(LS.backend)||DEFAULT_BACKEND).replace(/\/+$/,"")},
         get tenantId(){return localStorage.getItem(LS.tenant)||""},
         get token(){return localStorage.getItem(LS.token)||""},
         get email(){return localStorage.getItem(LS.email)||""},
       };
+      function normalizeBackendUrl(raw){
+        const v=(raw||"").trim().replace(/\/+$/,"");
+        if(!v)return "";
+        try{
+          const u=new URL(v);
+          // README/npm script historically used :8000; this app’s local API default is :8004.
+          if((u.hostname==="127.0.0.1"||u.hostname==="localhost")&&(u.port==="8080"||u.port==="8002"||u.port==="8000")){
+            u.port="8004";
+            return u.toString().replace(/\/+$/,"");
+          }
+        }catch(_e){}
+        return v;
+      }
+      (function enforceSafeBackendDefault(){
+        const current=(localStorage.getItem(LS.backend)||DEFAULT_BACKEND).replace(/\/+$/,"");
+        let corrected=normalizeBackendUrl(current);
+        try{
+          const o=window.location.origin;
+          if(o&&o!=="null"&&current===o.replace(/\/+$/,"")){
+            const h=window.location.hostname;
+            if(h==="localhost"||h==="127.0.0.1"||h==="[::1]"||h==="::1"){
+              const hh=h==="::1"||h==="[::1]"?"127.0.0.1":h;
+              corrected=`${window.location.protocol}//${hh}:8004`.replace(/\/+$/,"");
+            }
+          }
+        }catch(_e){}
+        if(corrected&&corrected!==current){
+          localStorage.setItem(LS.backend,corrected);
+        }
+      })();
       function authHeaders(){
         if(!cfg.token)return {};
         return{"Authorization":"Bearer "+cfg.token};
+      }
+      async function readJsonOrThrow(resp){
+        const text=await resp.text();
+        let data=null;
+        try{data=text?JSON.parse(text):{}}catch(_e){data={raw:text}}
+        if(!resp.ok){
+          const detail=(data&&typeof data.detail==="string")
+            ? data.detail
+            : (data&&typeof data.raw==="string"&&data.raw.trim().startsWith("<!DOCTYPE"))
+              ? "Backend URL is incorrect. Use your API server (for local test: http://127.0.0.1:8004)."
+              : JSON.stringify(data);
+          throw new Error(detail||`HTTP ${resp.status}`);
+        }
+        return data||{};
       }
 
       /* ===== DOM refs ===== */
@@ -271,9 +398,13 @@
       const sendBtn=document.getElementById("sendBtn");
       const inputBar=document.getElementById("inputBar");
       const pageInt=document.getElementById("pageIntegrations");
+      const pageRegister=document.getElementById("pageRegister");
       const authOverlay=document.getElementById("authOverlay");
       const userBadge=document.getElementById("userBadge");
       const logoutBtn=document.getElementById("logoutBtn");
+      const convBar=document.getElementById("convBar");
+      const convSelect=document.getElementById("convSelect");
+      const newChatBtn=document.getElementById("newChatBtn");
 
       const authState={
         me:null,
@@ -281,19 +412,165 @@
         canImportManualToken:false,
       };
 
+      /* ===== Per-conversation state (local cache; server is source of truth for IDs) ===== */
+      let convState={activeId:null,list:[],byId:{}};
+      let activeConversationId=null;
+      function newUUID(){
+        return(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():
+          "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{
+            const r=Math.random()*16|0,v=c==="x"?r:(r&0x3)|0x8;
+            return v.toString(16);
+          });
+      }
+      function persistConvState(){
+        try{
+          convState.activeId=activeConversationId;
+          localStorage.setItem(LS.convState,JSON.stringify(convState));
+        }catch(_e){}
+      }
+      function loadConvState(){
+        try{
+          const raw=localStorage.getItem(LS.convState);
+          if(raw){
+            convState=JSON.parse(raw);
+            activeConversationId=convState.activeId||null;
+            if(activeConversationId&&!convState.byId[activeConversationId]){
+              activeConversationId=null;
+            }
+            return;
+          }
+          const leg=localStorage.getItem(LS.chat);
+          if(leg){
+            const parsed=JSON.parse(leg);
+            const id=newUUID();
+            const msgs=Array.isArray(parsed)?parsed.filter(m=>m&&typeof m.role==="string"&&typeof m.content==="string"):[];
+            let stores=null;
+            try{
+              const sr=localStorage.getItem(LS.stores);
+              const sp=sr?JSON.parse(sr):[];
+              if(Array.isArray(sp)&&sp.length)stores=sp;
+            }catch(_e){}
+            convState={
+              activeId:id,
+              list:[{id,title:"Chat",updatedAt:Date.now()}],
+              byId:{[id]:{messages:msgs,selectedStoreIds:stores}},
+            };
+            activeConversationId=id;
+            persistConvState();
+          }
+        }catch(_e){
+          convState={activeId:null,list:[],byId:{}};
+          activeConversationId=null;
+        }
+      }
+      function ensureConversation(){
+        if(activeConversationId&&convState.byId[activeConversationId])return;
+        const id=newUUID();
+        activeConversationId=id;
+        convState.activeId=id;
+        convState.list.unshift({id,title:"New chat",updatedAt:Date.now()});
+        convState.byId[id]={messages:[],selectedStoreIds:null};
+        persistConvState();
+        renderConversationSwitcher();
+      }
+      function saveCurrentTranscript(){
+        if(!activeConversationId)return;
+        if(!convState.byId[activeConversationId])convState.byId[activeConversationId]={messages:[],selectedStoreIds:null};
+        convState.byId[activeConversationId].messages=chatHistory.slice();
+        convState.byId[activeConversationId].selectedStoreIds=selectedStoreIds;
+        const ent=convState.list.find(x=>x.id===activeConversationId);
+        if(ent)ent.updatedAt=Date.now();
+        persistConvState();
+      }
+      function renderConversationSwitcher(){
+        if(!convSelect)return;
+        convSelect.innerHTML="";
+        const list=[...convState.list].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+        list.forEach(c=>{
+          const o=document.createElement("option");
+          o.value=c.id;
+          o.textContent=(c.title||"Chat").slice(0,48);
+          if(c.id===activeConversationId)o.selected=true;
+          convSelect.appendChild(o);
+        });
+      }
+      function applyConversationTitleFromMessage(text){
+        const ent=convState.list.find(x=>x.id===activeConversationId);
+        if(!ent||ent.title&&ent.title!=="New chat")return;
+        const t=String(text||"").trim().replace(/\s+/g," ").slice(0,60);
+        if(t)ent.title=t+(t.length>=60?"...":"");
+        renderConversationSwitcher();
+      }
+      function switchConversation(newId){
+        if(!newId||newId===activeConversationId)return;
+        saveCurrentTranscript();
+        activeConversationId=newId;
+        convState.activeId=newId;
+        persistConvState();
+        restoringHistory=true;
+        messagesEl.innerHTML="";
+        const pack=convState.byId[newId]||{messages:[],selectedStoreIds:null};
+        chatHistory=(pack.messages||[]).slice();
+        selectedStoreIds=pack.selectedStoreIds||null;
+        for(const m of chatHistory)addMsg(m.role,m.content,{skipRemember:true});
+        restoringHistory=false;
+        renderConversationSwitcher();
+      }
+      function newChat(){
+        saveCurrentTranscript();
+        const id=newUUID();
+        activeConversationId=id;
+        convState.activeId=id;
+        convState.list.unshift({id,title:"New chat",updatedAt:Date.now()});
+        convState.byId[id]={messages:[],selectedStoreIds:null};
+        chatHistory=[];
+        selectedStoreIds=null;
+        messagesEl.innerHTML="";
+        pendingActionId=null;
+        persistConvState();
+        renderConversationSwitcher();
+      }
+      function syncConversationFromResponse(data){
+        const cid=data&&data.conversation_id;
+        if(!cid)return;
+        if(!convState.byId[cid]){
+          convState.byId[cid]={messages:[],selectedStoreIds:null};
+          convState.list.unshift({id:cid,title:"Chat",updatedAt:Date.now()});
+        }
+        activeConversationId=cid;
+        convState.activeId=cid;
+        persistConvState();
+        renderConversationSwitcher();
+      }
+
       /* ===== Routing ===== */
-      function normPath(){return(window.location.pathname.replace(/\/+$/,"")||"/")}
+      function normPath(){
+        const h=(window.location.hash||"").replace(/^#/,"");
+        if(h)return h.replace(/\/+$/,"")||"/";
+        return(window.location.pathname.replace(/\/+$/,"")||"/");
+      }
+      function isRegisterRoute(){
+        return normPath()==="/admin/register";
+      }
       function renderRoute(){
         const p=normPath();
+        if(p==="/register"){
+          window.location.hash="#/admin/register";
+          return;
+        }
         const isInt=p==="/integrations";
-        messagesEl.style.display=isInt?"none":"flex";
-        inputBar.style.display=isInt?"none":"flex";
+        const isRegister=p==="/admin/register";
+        messagesEl.style.display=(isInt||isRegister)?"none":"flex";
+        inputBar.style.display=(isInt||isRegister)?"none":"flex";
+        if(convBar)convBar.style.display=(isInt||isRegister)?"none":"flex";
         pageInt.classList.toggle("active",isInt);
-        document.title=isInt?"Integrations — Shopify AI":"Shopify AI Assistant";
+        pageRegister.classList.toggle("active",isRegister);
+        document.title=isInt?"Integrations — Shopify AI":(isRegister?"Add user — Shopify AI":"Shopify AI Assistant");
         if(isInt)syncIntFields();
+        if(isRegister)syncRegisterFields();
       }
       function setAuthUi(authed){
-        authOverlay.style.display=authed?"none":"flex";
+        authOverlay.style.display=(!authed&&!isRegisterRoute())?"flex":"none";
         logoutBtn.classList.toggle("hidden",!authed);
         userBadge.classList.toggle("hidden",!authed);
         sendBtn.disabled=!authed;
@@ -303,11 +580,11 @@
         if(!cfg.token){setAuthUi(false);return false}
         try{
           const resp=await fetch(cfg.backendUrl+"/auth/me",{headers:authHeaders()});
-          if(!resp.ok)throw new Error("Session expired");
-          const me=await resp.json();
+          const me=await readJsonOrThrow(resp);
           authState.me=me;
           authState.canImportManualToken=!!(me.capabilities&&me.capabilities.can_import_manual_token);
-          userBadge.textContent=(me.user.email||"user")+" ("+(me.user.role||"member")+")";
+          const accessLabel=(me.access||"read");
+          userBadge.textContent=(me.user.email||"user")+" ("+accessLabel+")";
           setAuthUi(true);
           syncIntFields();
           return true;
@@ -321,14 +598,38 @@
       }
       function logout(){
         localStorage.removeItem(LS.token);
+        localStorage.removeItem(LS.chat);
+        localStorage.removeItem(LS.stores);
+        localStorage.removeItem(LS.convState);
         authState.me=null;
+        chatHistory=[];
         selectedStoreIds=null;
+        activeConversationId=null;
+        convState={activeId:null,list:[],byId:{}};
+        messagesEl.innerHTML="";
         setAuthUi(false);
       }
       document.querySelectorAll("[data-link]").forEach(a=>{
-        a.addEventListener("click",e=>{e.preventDefault();history.pushState({},"",a.getAttribute("href"));renderRoute()})
+        a.addEventListener("click",e=>{
+          e.preventDefault();
+          const href=a.getAttribute("href")||"#/";
+          if(href.startsWith("#")){
+            window.location.hash=href.slice(1);
+          }else{
+            history.pushState({},"",href);
+          }
+          renderRoute();
+        })
       });
       window.addEventListener("popstate",renderRoute);
+      window.addEventListener("hashchange",renderRoute);
+      if(convSelect){
+        convSelect.addEventListener("change",()=>{
+          const v=convSelect.value;
+          if(v)switchConversation(v);
+        });
+      }
+      if(newChatBtn)newChatBtn.addEventListener("click",()=>newChat());
 
       /* ===== Markdown rendering ===== */
       let chatZoom=null;
@@ -353,6 +654,22 @@
 
       /* ===== Message helpers ===== */
       let lastPendingMsg=null;
+      let chatHistory=[];
+      let restoringHistory=false;
+      function persistChatState(){
+        saveCurrentTranscript();
+        try{
+          localStorage.setItem(LS.chat,JSON.stringify(chatHistory));
+          localStorage.setItem(LS.stores,JSON.stringify(selectedStoreIds||[]));
+        }catch(_e){}
+      }
+      function rememberMessage(role,content){
+        if(restoringHistory)return;
+        if(!["user","bot","system"].includes(role))return;
+        chatHistory.push({role,content:String(content||"")});
+        if(chatHistory.length>120)chatHistory=chatHistory.slice(-120);
+        persistChatState();
+      }
       function addMsg(role,content,opts={}){
         const div=document.createElement("div");
         div.className="msg "+role;
@@ -367,6 +684,7 @@
         }
         messagesEl.appendChild(div);
         scrollBottom();
+        if(!opts.skipRemember)rememberMessage(role,content);
         return div;
       }
       function addBotRaw(htmlContent){
@@ -391,6 +709,19 @@
       let sending=false;
       let pendingActionId=null;
       let selectedStoreIds=null;
+      function restoreChatState(){
+        loadConvState();
+        ensureConversation();
+        const pack=convState.byId[activeConversationId]||{messages:[],selectedStoreIds:null};
+        chatHistory=(pack.messages||[]).slice();
+        selectedStoreIds=pack.selectedStoreIds||null;
+        if(chatHistory.length){
+          restoringHistory=true;
+          for(const m of chatHistory)addMsg(m.role,m.content,{skipRemember:true});
+          restoringHistory=false;
+        }
+        renderConversationSwitcher();
+      }
       function userCanWriteSelectedStores(){
         if(!authState.me||!authState.me.can_write_by_store)return false;
         const selected=selectedStoreIds&&selectedStoreIds.length?selectedStoreIds:(authState.me.stores||[]).map(s=>s.store_id);
@@ -407,13 +738,18 @@
         if(!text.trim())return;
         if(sending)return;
         if(!cfg.token){addMsg("system","Please login first.");setAuthUi(false);return}
-        if(!extraBody._skipUserBubble)addMsg("user",text);
+        ensureConversation();
+        if(!extraBody._skipUserBubble){
+          addMsg("user",text);
+          applyConversationTitleFromMessage(text);
+        }
         msgInput.value="";msgInput.style.height="auto";
         setLoading(true);
         addTyping();
 
         const body={message:text,...extraBody};
         delete body._skipUserBubble;
+        if(activeConversationId)body.conversation_id=activeConversationId;
         if(!body.store_ids&&!body.store_id&&!body.shop_domain&&selectedStoreIds){
           body.store_ids=selectedStoreIds;
         }
@@ -428,9 +764,13 @@
           const data=await resp.json();
 
           if(!resp.ok){
-            const errText=typeof data.detail==="string"?data.detail:JSON.stringify(data);
+            let errText=typeof data.detail==="string"?data.detail:JSON.stringify(data);
+            if(data&&typeof data.error==="string"&&data.error.trim()){
+              errText+=(errText?"\n\n":"")+"Details: "+data.error.trim();
+            }
             addMsg("bot",errText||"Request failed.");return;
           }
+          syncConversationFromResponse(data);
 
           if(data.type==="needs_store_selection"){
             renderStoreSelection(data,text);return;
@@ -474,6 +814,7 @@
           if(!checked.length){addMsg("system","Please select at least one store.");return}
 
           selectedStoreIds=checked;
+          persistChatState();
 
           confirmBtn.disabled=true;confirmBtn.textContent="Selected";
           bubble.querySelectorAll('.store-check input').forEach(cb=>{cb.disabled=true;cb.closest("label").classList.add("disabled")});
@@ -481,13 +822,14 @@
           const names=[...bubble.querySelectorAll('.store-check input:checked')].map(cb=>cb.dataset.domain);
           addMsg("system","Selected: "+names.join(", ")+" (remembered for this session)");
 
-          sendChat(originalMessage,{store_ids:checked,_skipUserBubble:true});
+          sendChat(originalMessage,{store_ids:checked,_skipUserBubble:true,skip_user_message_persist:true});
         });
       }
 
       /* ===== Mutation confirmation (inline in chat) ===== */
       function renderConfirmation(data){
         pendingActionId=data.pending_action_id;
+        const confirmConvId=data.conversation_id||activeConversationId;
         const summary=data.pending_action_summary||"";
         const canWrite=userCanWriteSelectedStores();
         let html='<div class="md-root"><p>'+renderMd(data.message||"I need your confirmation to proceed.")+'</p></div>';
@@ -514,10 +856,15 @@
             const resp=await fetch(cfg.backendUrl+"/chat/confirm",{
               method:"POST",
               headers:{"Content-Type":"application/json",...authHeaders()},
-              body:JSON.stringify({pending_action_id:pendingActionId,approve}),
+              body:JSON.stringify({
+                pending_action_id:pendingActionId,
+                approve,
+                conversation_id:confirmConvId||undefined,
+              }),
             });
             removeTyping();
             const d=await resp.json();
+            syncConversationFromResponse(d);
             addMsg("bot",d.message||JSON.stringify(d));
           }catch(err){
             removeTyping();
@@ -540,13 +887,22 @@
 
       /* ===== Integrations page logic ===== */
       function syncIntFields(){
-        document.getElementById("intBackendUrl").value=cfg.backendUrl;
+        document.getElementById("intBackendUrl").value=normalizeBackendUrl(cfg.backendUrl);
         document.getElementById("intTenantId").value=(authState.me&&authState.me.user&&authState.me.user.tenant_id)||cfg.tenantId||"";
         document.getElementById("intEmail").value=(authState.me&&authState.me.user&&authState.me.user.email)||"";
-        document.getElementById("manualSaveBtn").disabled=!authState.canImportManualToken;
+        const can=authState.canImportManualToken;
+        document.getElementById("manualSaveBtn").disabled=!can;
+        const hint=document.getElementById("manualSaveHint");
+        if(!can){
+          hint.style.display="block";
+          hint.textContent="Save connection is disabled: your role is read-only. Log out and sign in as an owner or admin (e.g. the account from AUTH_ADMIN_REGISTER_EMAIL), or use OAuth below if the Shopify app is configured in backend .env.";
+        }else{
+          hint.style.display="none";
+          hint.textContent="";
+        }
       }
       function saveIntFields(){
-        localStorage.setItem(LS.backend,document.getElementById("intBackendUrl").value.trim());
+        localStorage.setItem(LS.backend,normalizeBackendUrl(document.getElementById("intBackendUrl").value));
         localStorage.setItem(LS.tenant,document.getElementById("intTenantId").value.trim());
       }
       ["intBackendUrl","intTenantId"].forEach(id=>{
@@ -558,6 +914,11 @@
         return{backendUrl:cfg.backendUrl,headers:authHeaders()};
       }
 
+      function syncRegisterFields(){
+        document.getElementById("regBackendUrl").value=normalizeBackendUrl(cfg.backendUrl);
+        document.getElementById("regEmail").value=cfg.email||"";
+      }
+
       document.getElementById("oauthBtn").addEventListener("click",async()=>{
         const{backendUrl,headers}=intHeaders();
         const shop=document.getElementById("oauthShop").value.trim();
@@ -567,8 +928,7 @@
         if(!shop){msg.textContent="Enter a shop domain.";msg.className="small status-err";return}
         try{
           const resp=await fetch(backendUrl+"/integrations/shopify/oauth-install-url?shop="+encodeURIComponent(shop),{headers});
-          const data=await resp.json();
-          if(!resp.ok){msg.textContent=data.detail||JSON.stringify(data);msg.className="small status-err";return}
+          const data=await readJsonOrThrow(resp);
           out.textContent=data.install_url;out.style.display="block";
           msg.innerHTML='<span class="status-ok">Open the link above in a browser to authorize.</span>';msg.className="small";
         }catch(e){msg.textContent=e.message||String(e);msg.className="small status-err"}
@@ -587,8 +947,7 @@
             method:"POST",headers:{...headers,"Content-Type":"application/json"},
             body:JSON.stringify({shop_domain:shop,access_token:token,scopes}),
           });
-          const data=await resp.json();
-          if(!resp.ok){msg.textContent=data.detail||JSON.stringify(data);msg.className="small status-err";return}
+          const data=await readJsonOrThrow(resp);
           msg.textContent="Saved. store_id: "+(data.store_id||"ok");msg.className="small status-ok";
           document.getElementById("manualToken").value="";loadStores();
         }catch(e){msg.textContent=e.message||String(e);msg.className="small status-err"}
@@ -600,36 +959,78 @@
         el.textContent="Loading...";
         try{
           const resp=await fetch(backendUrl+"/integrations/shopify/status",{headers});
-          const data=await resp.json();
-          if(!resp.ok){el.textContent=data.detail||JSON.stringify(data);el.className="small status-err";return}
+          const data=await readJsonOrThrow(resp);
           el.className="small";
           if(!data.stores||!data.stores.length){el.textContent="No stores connected yet.";return}
           el.innerHTML=data.stores.map(s=>`<div class="store-pill">${s.shop_domain} &mdash; <code>${s.store_id}</code> (${s.token_source}, ${s.status})</div>`).join("");
         }catch(e){el.textContent=e.message||String(e);el.className="small status-err"}
       }
       document.getElementById("refreshStoresBtn").addEventListener("click",loadStores);
+      document.getElementById("registerBtn").addEventListener("click",async()=>{
+        const backend=normalizeBackendUrl(document.getElementById("regBackendUrl").value);
+        const admin_email=(document.getElementById("regAdminEmail").value||"").trim().toLowerCase();
+        const admin_password=String(document.getElementById("regAdminPassword").value||"");
+        const email=document.getElementById("regEmail").value.trim().toLowerCase();
+        const displayName=document.getElementById("regDisplayName").value.trim();
+        const userPassword=String(document.getElementById("regUserPassword").value||"");
+        const access=document.getElementById("regAccess").value;
+        const msg=document.getElementById("registerMsg");
+        msg.textContent="";
+        msg.className="small";
+        if(!backend||!admin_email||!admin_password||!email){
+          msg.textContent="Backend URL, admin email, admin password, and new user email are required.";
+          msg.className="small status-err";
+          return;
+        }
+        if(userPassword.length<8){
+          msg.textContent="New user password must be at least 8 characters.";
+          msg.className="small status-err";
+          return;
+        }
+        localStorage.setItem(LS.backend,backend);
+        localStorage.setItem(LS.tenant,"");
+        localStorage.setItem(LS.email,email);
+        try{
+          const resp=await fetch(backend+"/auth/register",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+              email,
+              password:userPassword,
+              display_name:displayName||undefined,
+              admin_email,
+              admin_password,
+              access,
+            }),
+          });
+          const data=await readJsonOrThrow(resp);
+          msg.textContent="User registered successfully with role: "+(data.role||"member");
+          msg.className="small status-ok";
+        }catch(e){
+          msg.textContent=e.message||String(e);
+          msg.className="small status-err";
+        }
+      });
 
-      document.getElementById("loginBackendUrl").value=cfg.backendUrl;
-      document.getElementById("loginTenantId").value=cfg.tenantId;
+      document.getElementById("loginBackendUrl").value=normalizeBackendUrl(cfg.backendUrl);
       document.getElementById("loginEmail").value=cfg.email;
       document.getElementById("loginBtn").addEventListener("click",async()=>{
-        const backend=document.getElementById("loginBackendUrl").value.trim().replace(/\/+$/,"");
-        const tenant=document.getElementById("loginTenantId").value.trim();
+        const backend=normalizeBackendUrl(document.getElementById("loginBackendUrl").value);
         const email=document.getElementById("loginEmail").value.trim().toLowerCase();
+        const password=document.getElementById("loginPassword").value;
         const msg=document.getElementById("loginMsg");
         msg.textContent="";
-        if(!backend||!tenant||!email){msg.textContent="All fields are required.";return}
+        if(!backend||!email){msg.textContent="Backend URL and email are required.";return}
         localStorage.setItem(LS.backend,backend);
-        localStorage.setItem(LS.tenant,tenant);
+        localStorage.setItem(LS.tenant,"");
         localStorage.setItem(LS.email,email);
         try{
           const resp=await fetch(backend+"/auth/login",{
             method:"POST",
             headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({tenant_id:tenant,email}),
+            body:JSON.stringify({email,password:password||null}),
           });
-          const data=await resp.json();
-          if(!resp.ok){msg.textContent=data.detail||"Login failed";return}
+          const data=await readJsonOrThrow(resp);
           localStorage.setItem(LS.token,data.access_token||"");
           const ok=await loadMe();
           if(ok){
@@ -639,19 +1040,26 @@
             msg.textContent="Could not load session details.";
           }
         }catch(e){
-          msg.textContent=e.message||String(e);
+          const m=e.message||String(e);
+          const hint="Cannot reach the API (connection refused). Start the backend on port 8004, then use Backend URL http://127.0.0.1:8004 — from repo root: npm run dev:backend";
+          msg.textContent=/failed to fetch|networkerror|load failed/i.test(m)?hint:(m||"Login failed");
         }
       });
       logoutBtn.addEventListener("click",()=>logout());
 
       /* ===== Boot ===== */
       renderRoute();
+      restoreChatState();
       loadMe().then(ok=>{
         if(ok){
           const me=authState.me&&authState.me.user;
-          addMsg("system","Connected to "+cfg.backendUrl+" as "+((me&&me.email)||"user"));
+          if(!chatHistory.length){
+            addMsg("system","Connected to "+cfg.backendUrl+" as "+((me&&me.email)||"user"));
+          }
         }else{
-          addMsg("system","Please login to continue.");
+          if(!chatHistory.length){
+            addMsg("system","Please login to continue.");
+          }
         }
       });
     })();
